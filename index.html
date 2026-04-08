@@ -1,1 +1,1110 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScienceWithAbhi – Learn. Test. Excel.</title>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, addDoc, deleteDoc, query, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js";
+
+  // ─────────────────────────────────────────────────
+  // FIREBASE CONFIG
+  // Go to https://console.firebase.google.com
+  // Create a project → Add Web App → Copy config here
+  // Also enable Firestore Database in test mode
+  // ─────────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyDEMO_REPLACE_WITH_YOUR_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "123456789",
+    appId: "1:123456789:web:abcdef"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // ─────────────────────────────────────────────────
+  // DB HELPERS — all data synced via Firestore
+  // ─────────────────────────────────────────────────
+  async function dbGet(col, id) {
+    try {
+      const snap = await getDoc(doc(db, col, id));
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+    } catch(e) { console.error(e); return null; }
+  }
+
+  async function dbGetAll(col) {
+    try {
+      const snap = await getDocs(collection(db, col));
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) { console.error(e); return []; }
+  }
+
+  async function dbSet(col, id, data) {
+    try {
+      await setDoc(doc(db, col, id), { ...data, updatedAt: new Date().toISOString() });
+      return true;
+    } catch(e) { console.error(e); return false; }
+  }
+
+  async function dbAdd(col, data) {
+    try {
+      const ref = await addDoc(collection(db, col), { ...data, createdAt: new Date().toISOString() });
+      return ref.id;
+    } catch(e) { console.error(e); return null; }
+  }
+
+  async function dbDelete(col, id) {
+    try { await deleteDoc(doc(db, col, id)); return true; }
+    catch(e) { console.error(e); return false; }
+  }
+
+  // ─────────────────────────────────────────────────
+  // EXPOSE TO WINDOW so non-module script can use them
+  // ─────────────────────────────────────────────────
+  window._db = { dbGet, dbGetAll, dbSet, dbAdd, dbDelete, db };
+
+  // Seed admin on first load
+  async function seedAdmin() {
+    const existing = await dbGet('users', 'admin');
+    if (!existing) {
+      await dbSet('users', 'admin', {
+        username: 'admin',
+        password: 'admin123',
+        name: 'Abhi',
+        role: 'admin'
+      });
+    }
+  }
+  await seedAdmin();
+
+  // Signal app ready
+  window._firebaseReady = true;
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#07101c;color:#e2e8f0;min-height:100vh;font-size:14px}
+:root{
+  --bg:#07101c;--bg2:#0c1828;--bg3:#101f33;
+  --card:#0e1c30;--card2:#122038;
+  --b:rgba(56,189,248,.14);--b2:rgba(56,189,248,.3);
+  --ac:#38bdf8;--ac2:#818cf8;
+  --g:#34d399;--r:#f87171;--gold:#fbbf24;--or:#fb923c;
+  --t:#e2e8f0;--t2:#94a3b8;--t3:#475569;
+}
+h1,h2,h3{font-family:'Syne',sans-serif;font-weight:800}
+input,textarea,select{background:var(--bg2);border:1.5px solid var(--b);color:var(--t);border-radius:9px;padding:9px 12px;font-family:'DM Sans',sans-serif;font-size:13px;width:100%;outline:none;transition:border .2s;resize:vertical}
+input:focus,textarea:focus,select:focus{border-color:var(--ac)}
+select option{background:var(--bg2)}
+.btn{display:inline-flex;align-items:center;gap:6px;border-radius:8px;font-family:'Syne',sans-serif;font-weight:700;cursor:pointer;border:none;font-size:12px;padding:8px 16px;transition:all .18s;white-space:nowrap}
+.bp{background:var(--ac);color:#07101c}.bp:hover{filter:brightness(1.1)}
+.bs{background:transparent;color:var(--ac);border:1.5px solid var(--ac)}.bs:hover{background:rgba(56,189,248,.08)}
+.bg2b{background:transparent;color:var(--t2);border:1px solid var(--b)}.bg2b:hover{border-color:var(--b2);color:var(--t)}
+.bd{background:var(--r);color:#fff}.bd:hover{filter:brightness(1.1)}
+.card{background:var(--card);border:1px solid var(--b);border-radius:13px;padding:18px}
+.card2{background:var(--card2);border:1px solid var(--b2);border-radius:13px;padding:20px}
+.badge{display:inline-block;padding:2px 9px;border-radius:14px;font-size:10px;font-weight:700;font-family:'Syne',sans-serif;letter-spacing:.4px;text-transform:uppercase}
+.bbl{background:rgba(56,189,248,.12);color:var(--ac)}
+.bpu{background:rgba(129,140,248,.12);color:#a5b4fc}
+.bgd{background:rgba(251,191,36,.12);color:var(--gold)}
+.bgr{background:rgba(52,211,153,.12);color:var(--g)}
+.brd{background:rgba(248,113,113,.12);color:var(--r)}
+.bor{background:rgba(251,146,60,.12);color:var(--or)}
+.fg{margin-bottom:13px}
+.fg label{font-size:11px;color:var(--t2);font-weight:500;display:block;margin-bottom:5px}
+.empty{text-align:center;padding:44px 16px;color:var(--t3)}
+.empty .ei{font-size:36px;opacity:.4;margin-bottom:10px}
+.empty .et{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;color:var(--t2)}
+.spin{display:inline-block;width:18px;height:18px;border:2.5px solid var(--b);border-top-color:var(--ac);border-radius:50%;animation:sp 1s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+#toast{position:fixed;bottom:18px;right:18px;z-index:9999;background:var(--card2);border:1px solid var(--b2);border-radius:10px;padding:11px 16px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 24px rgba(0,0,0,.5);transform:translateY(80px);opacity:0;transition:all .28s;max-width:300px;pointer-events:none}
+#toast.show{transform:translateY(0);opacity:1}
+#toast.ok{border-color:rgba(52,211,153,.4)}
+#toast.er{border-color:rgba(248,113,113,.4)}
+#loader{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}
+.nav{background:rgba(7,16,28,.93);backdrop-filter:blur(16px);border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between;padding:0 22px;height:56px;position:sticky;top:0;z-index:100;gap:10px}
+.logo{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;cursor:pointer;display:flex;align-items:center;gap:8px;flex-shrink:0;text-decoration:none;color:var(--t)}
+.logo-ic{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--ac),var(--ac2));display:flex;align-items:center;justify-content:center;font-size:15px}
+.nav-links{display:flex;gap:2px}
+.nl{padding:6px 12px;border-radius:7px;font-size:12px;font-weight:600;font-family:'Syne',sans-serif;color:var(--t2);cursor:pointer;transition:all .18s}
+.nl:hover,.nl.on{color:var(--ac);background:rgba(56,189,248,.08)}
+.page{display:none;min-height:calc(100vh - 56px)}
+.page.on{display:block}
+.pi{max-width:1060px;margin:0 auto;padding:28px 18px 60px}
+.modal-bg{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;padding:14px}
+.modal{background:var(--card2);border:1px solid var(--b2);border-radius:15px;padding:26px;width:100%;max-width:420px;max-height:92vh;overflow-y:auto;position:relative}
+.mc{position:absolute;top:14px;right:14px;width:26px;height:26px;border-radius:7px;background:var(--bg2);border:1px solid var(--b);color:var(--t2);cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center}
+.mc:hover{color:var(--t)}
+.at{display:flex;margin-bottom:20px;border:1px solid var(--b);border-radius:8px;overflow:hidden}
+.atb{flex:1;padding:9px;text-align:center;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:var(--t2);transition:all .18s}
+.atb.on{background:var(--ac);color:#07101c}
+.sidebar{background:var(--card);border:1px solid var(--b);border-radius:13px;padding:14px;position:sticky;top:68px}
+.si{display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:500;color:var(--t2);margin-bottom:2px;transition:all .18s}
+.si:hover,.si.on{background:rgba(56,189,248,.08);color:var(--ac)}
+.titem{background:var(--card);border:1px solid var(--b);border-radius:10px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:9px;transition:border-color .18s}
+.titem:hover{border-color:var(--b2)}
+.qcard{background:var(--card);border:1px solid var(--b2);border-radius:12px;padding:18px;margin-bottom:13px}
+.qopt{display:flex;align-items:center;gap:9px;padding:10px 13px;border-radius:8px;background:var(--bg2);border:1.5px solid var(--b);cursor:pointer;transition:all .18s;user-select:none;margin-bottom:7px}
+.qopt:hover{border-color:var(--ac)}
+.qopt.sel{border-color:var(--ac);background:rgba(56,189,248,.09)}
+.qopt.qok{border-color:var(--g);background:rgba(52,211,153,.07)}
+.qopt.qwr{border-color:var(--r);background:rgba(248,113,113,.07)}
+.oball{width:22px;height:22px;border-radius:50%;border:2px solid var(--b2);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:'Syne',sans-serif;flex-shrink:0;transition:all .18s}
+.qopt.sel .oball{border-color:var(--ac);background:var(--ac);color:#07101c}
+.qopt.qok .oball{border-color:var(--g);background:var(--g);color:#07101c}
+.qopt.qwr .oball{border-color:var(--r);background:var(--r);color:#fff}
+.timer-txt{font-family:monospace;font-size:28px;font-weight:700;color:var(--ac)}
+.chip{padding:4px 12px;border-radius:18px;border:1px solid var(--b);font-size:11px;font-weight:700;cursor:pointer;color:var(--t2);font-family:'Syne',sans-serif;transition:all .18s}
+.chip:hover,.chip.on{border-color:var(--ac);color:var(--ac);background:rgba(56,189,248,.07)}
+.opt-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.opt-row input[type=radio]{width:auto;cursor:pointer;accent-color:var(--g);flex-shrink:0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.saving-bar{position:fixed;top:64px;right:18px;z-index:300;background:var(--card2);border:1px solid var(--b2);border-radius:8px;padding:7px 13px;font-size:12px;display:flex;align-items:center;gap:7px;color:var(--t2);display:none}
+
+/* FIREBASE SETUP NOTICE */
+#setup-notice{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.85);backdrop-filter:blur(8px);align-items:center;justify-content:center;padding:20px}
+.setup-box{background:var(--card2);border:1px solid var(--b2);border-radius:16px;padding:32px;max-width:560px;width:100%}
+.setup-box h2{font-size:20px;margin-bottom:16px;color:var(--ac)}
+.setup-box p{font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:12px}
+.setup-box code{background:var(--bg2);border:1px solid var(--b);border-radius:6px;padding:2px 7px;font-family:monospace;font-size:12px;color:var(--ac)}
+.setup-box .step{display:flex;gap:10px;margin-bottom:14px;padding:12px 14px;background:var(--bg2);border-radius:9px;border:1px solid var(--b)}
+.setup-box .step-num{width:22px;height:22px;border-radius:50%;background:var(--ac);color:#07101c;font-family:'Syne',sans-serif;font-weight:700;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader">
+  <div style="width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--ac),var(--ac2));display:flex;align-items:center;justify-content:center;font-size:22px">⚗️</div>
+  <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px">SCIENCE<span style="color:var(--ac)">WITHABHI</span></div>
+  <div class="spin"></div>
+  <div style="font-size:12px;color:var(--t3)">Connecting to server…</div>
+</div>
+
+<!-- FIREBASE SETUP GUIDE (shown if not configured) -->
+<div id="setup-notice" style="display:none">
+  <div class="setup-box">
+    <h2>⚡ One-time Firebase Setup Required</h2>
+    <p>Your site needs a free Firebase database so data syncs across all devices. This takes 5 minutes and is completely free.</p>
+    <div class="step"><div class="step-num">1</div><div><strong style="color:var(--t)">Go to Firebase Console</strong><br><a href="https://console.firebase.google.com" target="_blank" style="color:var(--ac)">console.firebase.google.com</a> → Create a new project (any name, e.g. "sciencewithabhi")</div></div>
+    <div class="step"><div class="step-num">2</div><div><strong style="color:var(--t)">Add a Web App</strong><br>In your project → click the web icon (&lt;/&gt;) → Register app → Copy the <code>firebaseConfig</code> object</div></div>
+    <div class="step"><div class="step-num">3</div><div><strong style="color:var(--t)">Enable Firestore</strong><br>Left sidebar → Firestore Database → Create database → Start in <strong>test mode</strong></div></div>
+    <div class="step"><div class="step-num">4</div><div><strong style="color:var(--t)">Update this file</strong><br>Open <code>sciencewithabhi.html</code> → Find <code>firebaseConfig</code> near the top → Replace the placeholder values with your real config → Save & redeploy</div></div>
+    <p style="margin-top:16px;padding:12px;background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:9px;color:var(--g)">✓ Once configured, admin login will work with <strong>admin / admin123</strong> and all posts will sync instantly to every device worldwide.</p>
+    <button class="btn bp" style="margin-top:4px;width:100%;justify-content:center" onclick="document.getElementById('setup-notice').style.display='none'">I've configured it — Continue</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div class="saving-bar" id="saving-bar"><div class="spin"></div><span id="saving-txt">Saving…</span></div>
+
+<!-- NAV -->
+<nav class="nav">
+  <a class="logo" onclick="nav('home')">
+    <div class="logo-ic">⚗️</div>
+    SCIENCE<span style="color:var(--ac)">WITHABHI</span>
+  </a>
+  <div class="nav-links">
+    <div class="nl on" id="nl-home" onclick="nav('home')">🏠 Home</div>
+    <div class="nl" id="nl-tests" onclick="nav('tests')">📝 Tests</div>
+    <div class="nl" id="nl-notes" onclick="nav('notes')">📚 Notes</div>
+    <div class="nl" id="nl-lb" onclick="nav('lb')">🏆 Ranks</div>
+  </div>
+  <div id="nav-right" style="display:flex;gap:8px;align-items:center;flex-shrink:0"></div>
+</nav>
+
+<!-- AUTH MODAL -->
+<div id="auth-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('auth-modal')">
+  <div class="modal">
+    <button class="mc" onclick="closeModal('auth-modal')">✕</button>
+    <h2 style="font-size:19px;margin-bottom:18px">Welcome to ScienceWithAbhi</h2>
+    <div class="at">
+      <div class="atb on" id="atb-li" onclick="authTab('li')">Log In</div>
+      <div class="atb" id="atb-su" onclick="authTab('su')">Sign Up</div>
+    </div>
+    <div id="form-li">
+      <div class="fg"><label>Username</label><input id="li-u" placeholder="Enter username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <div class="fg"><label>Password</label><input id="li-p" type="password" placeholder="Enter password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn bp" style="width:100%;justify-content:center;padding:10px" onclick="doLogin()">Log In →</button>
+      <p style="text-align:center;font-size:11px;color:var(--t3);margin-top:12px">Admin: <strong style="color:var(--ac)">admin</strong> / <strong style="color:var(--ac)">admin123</strong></p>
+    </div>
+    <div id="form-su" style="display:none">
+      <div class="fg"><label>Full Name</label><input id="su-n" placeholder="Your name"></div>
+      <div class="fg"><label>Username</label><input id="su-u" placeholder="Choose username"></div>
+      <div class="fg"><label>Password</label><input id="su-p" type="password" placeholder="Min 4 characters"></div>
+      <div class="fg"><label>Confirm Password</label><input id="su-c" type="password" placeholder="Repeat password"></div>
+      <button class="btn bp" style="width:100%;justify-content:center;padding:10px" onclick="doSignup()">Create Account →</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTE MODAL -->
+<div id="note-modal" class="modal-bg" style="display:none" onclick="if(event.target===this)closeModal('note-modal')">
+  <div class="modal" style="max-width:620px">
+    <button class="mc" onclick="closeModal('note-modal')">✕</button>
+    <div id="note-modal-body"></div>
+  </div>
+</div>
+
+<!-- HOME -->
+<div id="page-home" class="page on">
+  <div style="background:radial-gradient(ellipse 70% 55% at 65% 40%,rgba(56,189,248,.06) 0%,transparent 65%),var(--bg);min-height:calc(100vh - 56px);display:flex;align-items:center">
+    <div class="pi" style="display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center">
+      <div>
+        <div style="display:inline-block;padding:3px 12px;border-radius:18px;background:rgba(56,189,248,.09);border:1px solid rgba(56,189,248,.25);font-size:10px;font-weight:700;color:var(--ac);font-family:'Syne',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:16px">🔬 Science Learning Platform</div>
+        <h1 style="font-size:clamp(28px,4vw,52px);line-height:1.1;margin-bottom:14px">Master Science.<br><span style="color:var(--ac)">Ace Every Test.</span></h1>
+        <p style="font-size:15px;color:var(--t2);line-height:1.7;margin-bottom:24px">Whatever Abhi posts — tests, notes, questions — appears instantly on every device worldwide. Real-time sync, no delays.</p>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn bp" style="font-size:13px;padding:10px 20px" onclick="nav('tests')">Browse Tests ✦</button>
+          <button class="btn bs" style="font-size:13px;padding:10px 20px" onclick="openModal('auth-modal');authTab('su')">Join Free</button>
+        </div>
+        <div style="display:flex;gap:24px;margin-top:32px">
+          <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:var(--ac)" id="h-tc">—</div><div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Tests</div></div>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:var(--ac)" id="h-sc">—</div><div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Students</div></div>
+          <div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:var(--ac)" id="h-nc">—</div><div style="font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:1px">Notes</div></div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center">
+        <div class="card2" style="width:310px">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:11px">⚛️ Sample MCQ — Physics</div>
+          <p style="font-size:12px;color:var(--t2);margin-bottom:11px">What is the SI unit of electric current?</p>
+          <div class="qopt"><div class="oball">A</div>Volt</div>
+          <div class="qopt qok"><div class="oball" style="background:var(--g);border-color:var(--g);color:#07101c">B</div>Ampere ✓</div>
+          <div class="qopt"><div class="oball">C</div>Watt</div>
+          <div class="qopt"><div class="oball">D</div>Ohm</div>
+          <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-top:11px">
+            <div style="height:100%;width:60%;background:linear-gradient(90deg,var(--ac),var(--ac2));border-radius:2px"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--t3)"><span>Q 3/5</span><span>60%</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="background:var(--bg2);padding:50px 0">
+    <div class="pi">
+      <h2 style="font-size:26px;text-align:center;margin-bottom:8px">Latest Tests</h2>
+      <p style="text-align:center;color:var(--t2);margin-bottom:28px;font-size:13px">Posted by Abhi — synced live to all devices</p>
+      <div id="h-tests" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px"></div>
+      <div style="text-align:center;margin-top:22px"><button class="btn bs" onclick="nav('tests')">View All Tests →</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- TESTS -->
+<div id="page-tests" class="page">
+  <div class="pi">
+    <h1 style="font-size:28px;margin-bottom:5px">Mock Tests</h1>
+    <p style="color:var(--t2);margin-bottom:20px;font-size:13px">All tests posted by Abhi — updated in real time</p>
+    <div id="t-chips" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px"></div>
+    <div style="position:relative;max-width:340px;margin-bottom:18px">
+      <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3)">🔍</span>
+      <input id="t-search" placeholder="Search tests…" style="padding-left:33px" oninput="renderTests()">
+    </div>
+    <div id="t-list"></div>
+  </div>
+</div>
+
+<!-- NOTES -->
+<div id="page-notes" class="page">
+  <div class="pi">
+    <h1 style="font-size:28px;margin-bottom:5px">Study Notes</h1>
+    <p style="color:var(--t2);margin-bottom:20px;font-size:13px">Topic-wise notes by Abhi</p>
+    <div id="n-chips" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px"></div>
+    <div style="position:relative;max-width:340px;margin-bottom:18px">
+      <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--t3)">🔍</span>
+      <input id="n-search" placeholder="Search notes…" style="padding-left:33px" oninput="renderNotes()">
+    </div>
+    <div id="n-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:13px"></div>
+  </div>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="page-lb" class="page">
+  <div class="pi" style="max-width:640px">
+    <h1 style="font-size:28px;text-align:center;margin-bottom:6px">🏆 Leaderboard</h1>
+    <p style="text-align:center;color:var(--t2);margin-bottom:30px;font-size:13px">Top students by average score</p>
+    <div id="lb-list"></div>
+  </div>
+</div>
+
+<!-- TAKE TEST -->
+<div id="page-take" class="page">
+  <div class="pi" style="max-width:680px" id="take-wrap"></div>
+</div>
+
+<!-- STUDENT DASH -->
+<div id="page-student" class="page">
+  <div class="pi" style="max-width:860px">
+    <div id="std-head" style="display:flex;align-items:center;gap:13px;margin-bottom:26px;flex-wrap:wrap"></div>
+    <div id="std-stats" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:13px;margin-bottom:26px"></div>
+    <h3 style="font-size:16px;margin-bottom:13px">My Test History</h3>
+    <div id="std-hist"></div>
+  </div>
+</div>
+
+<!-- ADMIN -->
+<div id="page-admin" class="page">
+  <div class="pi">
+    <div style="display:grid;grid-template-columns:185px 1fr;gap:18px;align-items:start">
+      <div class="sidebar">
+        <div style="font-size:10px;color:var(--t3);font-weight:700;font-family:'Syne',sans-serif;letter-spacing:1px;text-transform:uppercase;margin-bottom:11px">Admin Panel</div>
+        <div class="si on" id="si-dash" onclick="aTab('dash',this)">📊 Dashboard</div>
+        <div class="si" id="si-ct" onclick="aTab('ct',this)">➕ Create Test</div>
+        <div class="si" id="si-mt" onclick="aTab('mt',this)">📋 Manage Tests</div>
+        <div class="si" id="si-cn" onclick="aTab('cn',this)">✍️ Upload Note</div>
+        <div class="si" id="si-mn" onclick="aTab('mn',this)">📚 Manage Notes</div>
+        <div class="si" id="si-stu" onclick="aTab('stu',this)">👥 Students</div>
+        <div style="margin-top:11px;padding-top:11px;border-top:1px solid var(--b)">
+          <button class="btn bd" style="width:100%;justify-content:center;font-size:11px" onclick="doLogout()">Log Out</button>
+        </div>
+      </div>
+      <div id="a-content" style="min-width:0"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// WAIT FOR FIREBASE, THEN BOOT
+// ═══════════════════════════════════════════════════
+const SUBJECTS = ['Physics','Chemistry','Biology','Mathematics','Environmental Science','Other'];
+let CU = null; // current user
+let tFilt = 'All', nFilt = 'All';
+let qDraft = [], editTId = null;
+let activeTest = null, answers = {}, testResult = null;
+let timerID = null, timeLeft = 0;
+
+function waitFirebase(cb) {
+  if (window._firebaseReady) { cb(); return; }
+  window.addEventListener('firebase-ready', cb, { once: true });
+  // Timeout — show setup notice if Firebase not configured
+  setTimeout(() => {
+    if (!window._firebaseReady) {
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('setup-notice').style.display = 'flex';
+    }
+  }, 6000);
+}
+
+waitFirebase(async () => {
+  document.getElementById('loader').style.display = 'none';
+  // Restore session
+  try {
+    const s = JSON.parse(sessionStorage.getItem('swa:cu') || 'null');
+    if (s) {
+      const u = await DB.getUser(s.id);
+      if (u) CU = u;
+    }
+  } catch(e) {}
+  updateNav();
+  await renderHome();
+});
+
+// ═══════════════════════════════════════════════════
+// DB LAYER — thin wrapper over Firebase helpers
+// ═══════════════════════════════════════════════════
+const DB = {
+  async getUser(id) { return window._db.dbGet('users', id); },
+  async getUserByUsername(username) {
+    const all = await window._db.dbGetAll('users');
+    return all.find(u => u.username === username) || null;
+  },
+  async getAllUsers() { return window._db.dbGetAll('users'); },
+  async setUser(id, data) { return window._db.dbSet('users', id, data); },
+  async addUser(data) { return window._db.dbAdd('users', data); },
+
+  async getAllTests() { return window._db.dbGetAll('tests'); },
+  async getTest(id) { return window._db.dbGet('tests', id); },
+  async setTest(id, data) { return window._db.dbSet('tests', id, data); },
+  async addTest(data) { return window._db.dbAdd('tests', data); },
+  async deleteTest(id) { return window._db.dbDelete('tests', id); },
+
+  async getAllNotes() { return window._db.dbGetAll('notes'); },
+  async getNote(id) { return window._db.dbGet('notes', id); },
+  async addNote(data) { return window._db.dbAdd('notes', data); },
+  async deleteNote(id) { return window._db.dbDelete('notes', id); },
+
+  async getAllSubs() { return window._db.dbGetAll('submissions'); },
+  async addSub(data) { return window._db.dbAdd('submissions', data); },
+  async deleteSub(id) { return window._db.dbDelete('submissions', id); },
+};
+
+// ═══════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════
+function showSaving(on, txt) {
+  const b = document.getElementById('saving-bar');
+  b.style.display = on ? 'flex' : 'none';
+  if (txt) document.getElementById('saving-txt').textContent = txt;
+}
+function toast(msg, type='ok') {
+  const t = document.getElementById('toast');
+  t.textContent = (type==='ok'?'✓ ':'✕ ') + msg;
+  t.className = 'show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 3200);
+}
+function openModal(id) { document.getElementById(id).style.display = 'flex'; }
+function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+function go(p) {
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('on'));
+  document.getElementById('page-' + p).classList.add('on');
+  window.scrollTo(0,0);
+}
+function nav(p) {
+  document.querySelectorAll('.nl').forEach(x => x.classList.remove('on'));
+  const el = document.getElementById('nl-' + p);
+  if (el) el.classList.add('on');
+  go(p);
+  if (p==='home') renderHome();
+  else if (p==='tests') renderTests();
+  else if (p==='notes') renderNotes();
+  else if (p==='lb') renderLB();
+}
+function updateNav() {
+  const nr = document.getElementById('nav-right');
+  if (!CU) {
+    nr.innerHTML = `<button class="btn bg2b" onclick="openModal('auth-modal');authTab('li')">Log In</button>
+                    <button class="btn bp" onclick="openModal('auth-modal');authTab('su')">Sign Up</button>`;
+  } else if (CU.role === 'admin') {
+    nr.innerHTML = `<div style="display:flex;align-items:center;gap:7px;padding:4px 12px 4px 6px;border-radius:22px;background:var(--card);border:1px solid var(--b2);cursor:pointer" onclick="go('admin');aTab('dash',document.getElementById('si-dash'))">
+      <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--ac2),var(--ac));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;font-family:'Syne',sans-serif">A</div>
+      <span style="font-size:12px;font-weight:600;font-family:'Syne',sans-serif">Admin</span>
+    </div>`;
+  } else {
+    nr.innerHTML = `<div style="display:flex;align-items:center;gap:7px;padding:4px 12px 4px 6px;border-radius:22px;background:var(--card);border:1px solid var(--b2);cursor:pointer" onclick="go('student');renderStudent()">
+      <div style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--ac2),var(--ac));display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;font-family:'Syne',sans-serif">${CU.name[0].toUpperCase()}</div>
+      <span style="font-size:12px;font-weight:600;font-family:'Syne',sans-serif">${CU.name}</span>
+    </div>
+    <button class="btn bg2b" onclick="doLogout()">Logout</button>`;
+  }
+}
+function fmtDate(d) {
+  if (!d) return '';
+  return new Date(d).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'});
+}
+
+// ═══════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════
+function authTab(t) {
+  document.getElementById('form-li').style.display = t==='li'?'block':'none';
+  document.getElementById('form-su').style.display = t==='su'?'block':'none';
+  document.getElementById('atb-li').classList.toggle('on', t==='li');
+  document.getElementById('atb-su').classList.toggle('on', t==='su');
+}
+async function doLogin() {
+  const u = document.getElementById('li-u').value.trim();
+  const p = document.getElementById('li-p').value;
+  if (!u||!p) return toast('Enter username and password','er');
+  showSaving(true,'Logging in…');
+  const user = await DB.getUserByUsername(u);
+  showSaving(false);
+  if (!user || user.password !== p) return toast('Wrong username or password','er');
+  CU = user;
+  sessionStorage.setItem('swa:cu', JSON.stringify({id: user.id}));
+  closeModal('auth-modal');
+  updateNav();
+  toast('Welcome, ' + user.name + '! 👋');
+  if (user.role==='admin') { go('admin'); aTab('dash', document.getElementById('si-dash')); }
+  else { go('student'); renderStudent(); }
+}
+async function doSignup() {
+  const name = document.getElementById('su-n').value.trim();
+  const u = document.getElementById('su-u').value.trim();
+  const p = document.getElementById('su-p').value;
+  const c = document.getElementById('su-c').value;
+  if (!name||!u||!p||!c) return toast('Fill all fields','er');
+  if (p!==c) return toast("Passwords don't match",'er');
+  if (p.length<4) return toast('Password too short','er');
+  showSaving(true,'Creating account…');
+  const existing = await DB.getUserByUsername(u);
+  if (existing) { showSaving(false); return toast('Username already taken','er'); }
+  const id = await DB.addUser({ username:u, password:p, name, role:'student' });
+  showSaving(false);
+  if (!id) return toast('Signup failed, try again','er');
+  CU = { id, username:u, password:p, name, role:'student' };
+  sessionStorage.setItem('swa:cu', JSON.stringify({id}));
+  closeModal('auth-modal');
+  updateNav();
+  toast('Welcome, ' + name + '! 🎉');
+  go('student'); renderStudent();
+}
+function doLogout() {
+  CU = null;
+  sessionStorage.removeItem('swa:cu');
+  updateNav();
+  nav('home');
+  toast('Logged out');
+}
+
+// ═══════════════════════════════════════════════════
+// HOME
+// ═══════════════════════════════════════════════════
+async function renderHome() {
+  const [tests, notes, users] = await Promise.all([DB.getAllTests(), DB.getAllNotes(), DB.getAllUsers()]);
+  const students = users.filter(u=>u.role!=='admin').length;
+  document.getElementById('h-tc').textContent = tests.length;
+  document.getElementById('h-nc').textContent = notes.length;
+  document.getElementById('h-sc').textContent = students;
+  const c = document.getElementById('h-tests');
+  const recent = tests.slice(-3).reverse();
+  if (!recent.length) {
+    c.innerHTML = '<div class="empty" style="grid-column:1/-1"><div class="ei">📋</div><div class="et">No tests yet — admin will post soon!</div></div>';
+    return;
+  }
+  c.innerHTML = recent.map(t=>`
+    <div class="card" style="cursor:pointer;transition:all .2s" onclick="startTest('${t.id}')"
+      onmouseenter="this.style.borderColor='var(--b2)';this.style.transform='translateY(-2px)'"
+      onmouseleave="this.style.borderColor='var(--b)';this.style.transform='none'">
+      <div style="margin-bottom:7px"><span class="badge bbl">${t.subject}</span></div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:6px">${t.title}</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:11px;line-height:1.5">${t.desc||'No description'}</div>
+      <div style="font-size:11px;color:var(--t3)">⏱ ${t.duration} min · ❓ ${(t.questions||[]).length} questions</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// TESTS PAGE
+// ═══════════════════════════════════════════════════
+async function renderTests() {
+  const [tests, subs] = await Promise.all([DB.getAllTests(), DB.getAllSubs()]);
+  const subjects = ['All', ...new Set(tests.map(t=>t.subject))];
+  document.getElementById('t-chips').innerHTML = subjects.map(s=>
+    `<div class="chip ${s===tFilt?'on':''}" onclick="tFilt='${s}';renderTests()">${s}</div>`
+  ).join('');
+  const q = (document.getElementById('t-search')||{}).value||'';
+  let list = [...tests].reverse();
+  if (tFilt!=='All') list = list.filter(t=>t.subject===tFilt);
+  if (q) list = list.filter(t=>t.title.toLowerCase().includes(q.toLowerCase()));
+  const c = document.getElementById('t-list');
+  if (!list.length) { c.innerHTML='<div class="empty"><div class="ei">📋</div><div class="et">No tests found</div></div>'; return; }
+  c.innerHTML = list.map(t=>{
+    const atts = subs.filter(s=>s.testId===t.id);
+    const my = CU ? atts.find(s=>s.userId===CU.id) : null;
+    return `<div class="titem">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:5px">${t.title}</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--t2)">
+          <span class="badge bbl">${t.subject}</span>
+          <span>⏱ ${t.duration}m</span><span>❓ ${(t.questions||[]).length} Qs</span><span>👥 ${atts.length}</span>
+          ${my?`<span class="badge bgr">My score: ${my.score}/${my.total}</span>`:''}
+        </div>
+      </div>
+      ${CU
+        ? `<button class="btn bp" onclick="startTest('${t.id}')">Start →</button>`
+        : `<button class="btn bg2b" onclick="openModal('auth-modal');authTab('li')">Login to attempt</button>`}
+    </div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// NOTES PAGE
+// ═══════════════════════════════════════════════════
+async function renderNotes() {
+  const notes = await DB.getAllNotes();
+  const subjects = ['All', ...new Set(notes.map(n=>n.subject))];
+  document.getElementById('n-chips').innerHTML = subjects.map(s=>
+    `<div class="chip ${s===nFilt?'on':''}" onclick="nFilt='${s}';renderNotes()">${s}</div>`
+  ).join('');
+  const q = (document.getElementById('n-search')||{}).value||'';
+  let list = [...notes].reverse();
+  if (nFilt!=='All') list = list.filter(n=>n.subject===nFilt);
+  if (q) list = list.filter(n=>n.title.toLowerCase().includes(q.toLowerCase())||n.content.toLowerCase().includes(q.toLowerCase()));
+  const c = document.getElementById('n-grid');
+  if (!list.length) { c.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="ei">📚</div><div class="et">No notes found</div></div>'; return; }
+  c.innerHTML = list.map(n=>`
+    <div class="card" style="cursor:pointer;transition:all .2s"
+      onmouseenter="this.style.borderColor='var(--b2)';this.style.transform='translateY(-2px)'"
+      onmouseleave="this.style.borderColor='var(--b)';this.style.transform='none'">
+      <div style="margin-bottom:6px"><span class="badge bpu">${n.subject}</span></div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:6px">${n.title}</div>
+      <div style="font-size:12px;color:var(--t2);line-height:1.6;margin-bottom:10px;max-height:62px;overflow:hidden">${n.content}</div>
+      ${n.tags?`<div style="margin-bottom:9px">${n.tags.split(',').map(t=>`<span class="badge bgd" style="margin-right:3px">${t.trim()}</span>`).join('')}</div>`:''}
+      <button class="btn bs" style="font-size:11px" onclick="openNoteModal('${n.id}')">Read Full →</button>
+    </div>`).join('');
+}
+async function openNoteModal(id) {
+  const n = await DB.getNote(id);
+  if (!n) return;
+  document.getElementById('note-modal-body').innerHTML = `
+    <div style="margin-bottom:6px"><span class="badge bpu">${n.subject}</span></div>
+    <h2 style="font-size:18px;margin:9px 0 13px">${n.title}</h2>
+    ${n.tags?`<div style="margin-bottom:13px">${n.tags.split(',').map(t=>`<span class="badge bgd" style="margin-right:4px">${t.trim()}</span>`).join('')}</div>`:''}
+    <div style="font-size:13px;color:var(--t2);white-space:pre-wrap;line-height:1.9;background:var(--bg2);padding:16px;border-radius:9px">${n.content}</div>
+    <div style="font-size:10px;color:var(--t3);margin-top:10px">Published: ${fmtDate(n.createdAt)}</div>`;
+  openModal('note-modal');
+}
+
+// ═══════════════════════════════════════════════════
+// LEADERBOARD
+// ═══════════════════════════════════════════════════
+async function renderLB() {
+  const subs = await DB.getAllSubs();
+  const scores = {};
+  subs.forEach(s => {
+    if (!scores[s.userId]) scores[s.userId] = { name: s.userName||'?', total:0, count:0 };
+    scores[s.userId].total += (s.score/s.total)*100;
+    scores[s.userId].count++;
+  });
+  const ranked = Object.values(scores).map(x=>({...x, avg:+(x.total/x.count).toFixed(1)})).sort((a,b)=>b.avg-a.avg);
+  const c = document.getElementById('lb-list');
+  if (!ranked.length) { c.innerHTML='<div class="empty"><div class="ei">🏆</div><div class="et">No scores yet</div></div>'; return; }
+  c.innerHTML = ranked.map((r,i)=>`
+    <div class="titem">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;width:30px;text-align:center;color:${i===0?'var(--gold)':i===1?'#94a3b8':i===2?'var(--or)':'var(--t3)'}">
+        ${i<3?['🥇','🥈','🥉'][i]:'#'+(i+1)}
+      </div>
+      <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--ac2),var(--ac));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-family:'Syne',sans-serif;font-size:13px;flex-shrink:0">${r.name[0].toUpperCase()}</div>
+      <div style="flex:1"><div style="font-weight:500;font-size:13px">${r.name}</div><div style="font-size:11px;color:var(--t3)">${r.count} test${r.count!==1?'s':''}</div></div>
+      <div style="font-family:monospace;font-size:14px;color:var(--ac);font-weight:700">${r.avg}%</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// TAKE TEST
+// ═══════════════════════════════════════════════════
+async function startTest(id) {
+  if (!CU) { openModal('auth-modal'); authTab('li'); return; }
+  showSaving(true,'Loading test…');
+  activeTest = await DB.getTest(id);
+  showSaving(false);
+  if (!activeTest) return toast('Test not found','er');
+  answers = {}; testResult = null;
+  clearInterval(timerID);
+  document.querySelectorAll('.nl').forEach(x=>x.classList.remove('on'));
+  go('take');
+  renderTakeTest();
+}
+function renderTakeTest() {
+  timeLeft = activeTest.duration * 60;
+  const c = document.getElementById('take-wrap');
+  c.innerHTML = `
+    <button class="btn bg2b" style="margin-bottom:18px;font-size:11px" onclick="clearInterval(timerID);nav('tests')">← Back</button>
+    <div class="card2" style="text-align:center;margin-bottom:18px">
+      <span class="badge bbl">${activeTest.subject}</span>
+      <h2 style="font-size:20px;margin:10px 0 5px">${activeTest.title}</h2>
+      ${activeTest.desc?`<p style="color:var(--t2);font-size:12px;margin-bottom:4px">${activeTest.desc}</p>`:''}
+      <p style="color:var(--t3);font-size:11px">⏱ ${activeTest.duration} min · ❓ ${(activeTest.questions||[]).length} questions</p>
+      <div class="timer-txt" id="tk-timer">--:--</div>
+    </div>
+    <div id="qs-wrap"></div>
+    <div style="text-align:center;margin:26px 0">
+      <button class="btn bp" style="font-size:14px;padding:12px 30px" onclick="submitTest()">Submit Test ✦</button>
+    </div>`;
+  document.getElementById('qs-wrap').innerHTML = (activeTest.questions||[]).map((q,i)=>qViewHTML(q,i)).join('');
+  timerID = setInterval(()=>{
+    if(--timeLeft<=0){clearInterval(timerID);submitTest();return;}
+    const el=document.getElementById('tk-timer');
+    if(el){const m=String(Math.floor(timeLeft/60)).padStart(2,'0'),s=String(timeLeft%60).padStart(2,'0');el.textContent=m+':'+s;el.style.color=timeLeft<60?'var(--r)':'var(--ac)';}
+  },1000);
+}
+function qViewHTML(q,i) {
+  const L='ABCDEFGH'; let body='';
+  if(q.type==='mcq'){
+    body=(q.options||[]).map((o,j)=>`<div class="qopt" id="qo-${q.id}-${j}" onclick="pickMCQ('${q.id}',${j},'${o.id}')"><div class="oball">${L[j]}</div>${o.text}</div>`).join('');
+  }else if(q.type==='truefalse'){
+    body=`<div style="display:flex;gap:9px">
+      <div class="qopt" id="qo-${q.id}-0" style="flex:1;justify-content:center;font-weight:600" onclick="pickTF('${q.id}','true',0)">✓ True</div>
+      <div class="qopt" id="qo-${q.id}-1" style="flex:1;justify-content:center;font-weight:600" onclick="pickTF('${q.id}','false',1)">✗ False</div>
+    </div>`;
+  }else if(q.type==='fillblank'){
+    body=`<input id="fb-${q.id}" placeholder="Your answer…" style="max-width:360px" oninput="answers['${q.id}']=this.value">`;
+  }else{
+    body=`<textarea id="sa-${q.id}" rows="4" placeholder="Write your answer here…" oninput="answers['${q.id}']=this.value"></textarea>`;
+  }
+  return `<div class="qcard">
+    <div style="font-size:10px;font-family:'Syne',sans-serif;font-weight:700;color:var(--t3);letter-spacing:1px;text-transform:uppercase;margin-bottom:7px">Q${i+1} of ${(activeTest.questions||[]).length} · ${q.marks||1} mark${q.marks!==1?'s':''}</div>
+    <div style="font-size:14px;font-weight:500;margin-bottom:13px;line-height:1.6">${q.text}</div>
+    ${body}</div>`;
+}
+function pickMCQ(qid,idx,oid){
+  answers[qid]=oid;
+  (activeTest.questions||[]).find(x=>x.id===qid)?.options?.forEach((_,i)=>{
+    const el=document.getElementById(`qo-${qid}-${i}`);if(el)el.className='qopt'+(i===idx?' sel':'');
+  });
+}
+function pickTF(qid,val,idx){
+  answers[qid]=val;
+  [0,1].forEach(i=>{const el=document.getElementById(`qo-${qid}-${i}`);if(el)el.className='qopt'+(i===idx?' sel':'');});
+}
+async function submitTest(){
+  clearInterval(timerID);
+  if(!activeTest)return;
+  showSaving(true,'Saving result…');
+  const results=(activeTest.questions||[]).map(q=>{
+    const given=answers[q.id];
+    let correct=false,givenLabel=given||'—',ansLabel='';
+    if(q.type==='mcq'){
+      const co=(q.options||[]).find(o=>o.id===q.correct),go2=(q.options||[]).find(o=>o.id===given);
+      correct=given===q.correct;givenLabel=go2?go2.text:'—';ansLabel=co?co.text:'';
+    }else if(q.type==='truefalse'){correct=given===q.answer;ansLabel=q.answer;}
+    else if(q.type==='fillblank'){correct=(given||'').toLowerCase().trim()===(q.answer||'').toLowerCase().trim();ansLabel=q.answer;}
+    else{correct=given&&given.trim().length>3;ansLabel=q.answer||'(model answer)';}
+    return{qId:q.id,type:q.type,correct,given:givenLabel,answer:ansLabel,marks:q.marks||1};
+  });
+  const score=results.filter(r=>r.correct).reduce((a,r)=>a+r.marks,0);
+  const total=(activeTest.questions||[]).reduce((a,q)=>a+(q.marks||1),0);
+  // Remove old submission for this user+test
+  const oldSubs=await DB.getAllSubs();
+  const old=oldSubs.find(s=>s.testId===activeTest.id&&s.userId===CU.id);
+  if(old)await DB.deleteSub(old.id);
+  await DB.addSub({testId:activeTest.id,userId:CU.id,userName:CU.name,score,total,results});
+  showSaving(false);
+  testResult={results,score,total};
+  renderResult();
+}
+function renderResult(){
+  const{results,score,total}=testResult;
+  const p=Math.round((score/total)*100);
+  const grade=p>=90?'🏆 Excellent!':p>=70?'✅ Good Job!':p>=50?'📈 Keep Going!':'📚 Needs Work';
+  const correct=results.filter(r=>r.correct).length,wrong=results.filter(r=>!r.correct&&r.given!=='—').length,skip=results.filter(r=>r.given==='—').length;
+  const rev=(activeTest.questions||[]).map((q,i)=>{
+    const r=results.find(x=>x.qId===q.id);
+    return `<div class="qcard" style="border-color:${r?.correct?'rgba(52,211,153,.3)':'rgba(248,113,113,.3)'}">
+      <div style="font-size:10px;font-family:'Syne',sans-serif;font-weight:700;color:${r?.correct?'var(--g)':'var(--r)'};margin-bottom:7px">Q${i+1} — ${r?.correct?'✓ Correct':'✗ Incorrect'}</div>
+      <div style="font-size:13px;font-weight:500;margin-bottom:9px;line-height:1.5">${q.text}</div>
+      <div style="font-size:12px;color:var(--t2)">Your answer: <strong style="color:${r?.correct?'var(--g)':'var(--r)'}">${r?.given}</strong></div>
+      ${!r?.correct?`<div style="font-size:12px;color:var(--t2);margin-top:3px">Correct: <strong style="color:var(--g)">${r?.answer||'N/A'}</strong></div>`:''}
+    </div>`;
+  }).join('');
+  document.getElementById('take-wrap').innerHTML=`
+    <button class="btn bg2b" style="margin-bottom:18px;font-size:11px" onclick="nav('tests')">← Back to Tests</button>
+    <div class="card2" style="text-align:center">
+      <div style="font-size:26px;margin-bottom:7px">${grade}</div>
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:58px;color:var(--ac)">${p}%</div>
+      <div style="font-size:12px;color:var(--t2);margin-bottom:20px">${score} / ${total} marks · ${activeTest.title}</div>
+      <div style="display:flex;justify-content:center;gap:22px;padding:14px 18px;background:var(--bg2);border-radius:9px;margin-bottom:16px">
+        ${[[correct,'var(--g)','Correct'],[wrong,'var(--r)','Wrong'],[skip,'var(--t3)','Skipped']].map(([n,col,l])=>`<div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:${col}">${n}</div><div style="font-size:10px;color:var(--t3)">${l}</div></div>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+        <button class="btn bg2b" style="font-size:11px" onclick="document.getElementById('rev').style.display=document.getElementById('rev').style.display==='none'?'block':'none'">Review Answers</button>
+        <button class="btn bs" style="font-size:11px" onclick="nav('lb')">🏆 Leaderboard</button>
+        <button class="btn bp" style="font-size:11px" onclick="nav('tests')">Done</button>
+      </div>
+    </div>
+    <div id="rev" style="display:none;margin-top:18px">${rev}</div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// STUDENT DASHBOARD
+// ═══════════════════════════════════════════════════
+async function renderStudent(){
+  if(!CU)return;
+  const[tests,subs]=await Promise.all([DB.getAllTests(),DB.getAllSubs()]);
+  const S=subs.filter(s=>s.userId===CU.id);
+  document.getElementById('std-head').innerHTML=`
+    <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,var(--ac2),var(--ac));display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#fff;font-family:'Syne',sans-serif;flex-shrink:0">${CU.name[0].toUpperCase()}</div>
+    <div><h1 style="font-size:22px">Welcome, ${CU.name}!</h1><p style="color:var(--t2);font-size:12px;margin-top:3px">@${CU.username}</p></div>`;
+  const pcts=S.map(s=>Math.round((s.score/s.total)*100));
+  const best=pcts.length?Math.max(...pcts):null,avg=pcts.length?Math.round(pcts.reduce((a,b)=>a+b,0)/pcts.length):null;
+  document.getElementById('std-stats').innerHTML=[[S.length,'var(--ac)','Tests Taken'],[best!==null?best+'%':'—','var(--g)','Best Score'],[avg!==null?avg+'%':'—','var(--gold)','Avg Score']].map(([v,col,l])=>`<div class="card" style="cursor:default"><div style="font-size:11px;color:var(--t2);margin-bottom:5px">${l}</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:24px;color:${col}">${v}</div></div>`).join('');
+  const hc=document.getElementById('std-hist');
+  if(!S.length){hc.innerHTML='<div class="empty"><div class="ei">🎯</div><div class="et">No tests taken yet</div></div>';return;}
+  hc.innerHTML=[...S].reverse().map(s=>{
+    const t=tests.find(x=>x.id===s.testId),p=Math.round((s.score/s.total)*100);
+    const gc=p>=70?'bgr':p>=40?'bgd':'brd';
+    return `<div class="titem"><div style="flex:1;min-width:0">
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:5px">${t?t.title:'Deleted test'}</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--t2)">
+        ${t?`<span class="badge bbl">${t.subject}</span>`:''}
+        <span>Score: <strong style="color:var(--ac)">${s.score}/${s.total}</strong></span>
+        <span class="badge ${gc}">${p}%</span>
+        <span style="font-size:10px;color:var(--t3)">${fmtDate(s.createdAt)}</span>
+      </div>
+    </div>${t?`<button class="btn bs" style="font-size:11px" onclick="startTest('${t.id}')">Retake</button>`:''}</div>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════
+// ADMIN PANEL
+// ═══════════════════════════════════════════════════
+function aTab(name,el){
+  document.querySelectorAll('.si').forEach(x=>x.classList.remove('on'));
+  if(el)el.classList.add('on');
+  const c=document.getElementById('a-content');
+  if(name==='dash')renderADash(c);
+  else if(name==='ct')renderACT(c);
+  else if(name==='mt')renderAMT(c);
+  else if(name==='cn')renderACN(c);
+  else if(name==='mn')renderAMN(c);
+  else if(name==='stu')renderASTU(c);
+}
+
+async function renderADash(c){
+  showSaving(true,'Loading…');
+  const[tests,notes,users,subs]=await Promise.all([DB.getAllTests(),DB.getAllNotes(),DB.getAllUsers(),DB.getAllSubs()]);
+  showSaving(false);
+  const students=users.filter(u=>u.role!=='admin').length;
+  c.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:9px">
+      <h2 style="font-size:20px">Dashboard</h2><span class="badge bbl">Admin</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;margin-bottom:24px">
+      ${[[tests.length,'var(--ac)','Tests'],[notes.length,'var(--ac2)','Notes'],[students,'var(--g)','Students'],[subs.length,'var(--gold)','Submissions']].map(([v,col,l])=>`<div class="card" style="cursor:default"><div style="font-size:11px;color:var(--t2);margin-bottom:5px">${l}</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:26px;color:${col}">${v}</div></div>`).join('')}
+    </div>
+    <h3 style="font-size:15px;margin-bottom:12px">Recent Submissions</h3>
+    ${!subs.length?'<div class="empty"><div class="ei">📊</div><div class="et">No submissions yet</div></div>':
+    [...subs].reverse().slice(0,8).map(s=>{
+      const t=tests.find(x=>x.id===s.testId),p=Math.round((s.score/s.total)*100),gc=p>=70?'bgr':p>=40?'bgd':'brd';
+      return `<div class="titem"><div><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:4px">${s.userName} — <span style="color:var(--t2);font-weight:400">${t?t.title:'Deleted'}</span></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--t2)"><span>Score: <strong style="color:var(--ac)">${s.score}/${s.total}</strong></span><span class="badge ${gc}">${p}%</span><span style="color:var(--t3)">${fmtDate(s.createdAt)}</span></div></div></div>`;
+    }).join('')}`;
+}
+
+// ── CREATE TEST ──
+function renderACT(c){
+  if(!editTId)qDraft=[];
+  c.innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:9px">
+      <h2 style="font-size:20px">${editTId?'Edit Test':'Create Test'}</h2>
+      ${editTId?`<button class="btn bg2b" style="font-size:11px" onclick="editTId=null;qDraft=[];renderACT(document.getElementById('a-content'))">Cancel</button>`:''}
+    </div>
+    <div class="card">
+      <div class="fg"><label>Test Title</label><input id="tf-t" placeholder="e.g. Physics Chapter 3 – Optics"></div>
+      <div class="grid2">
+        <div class="fg"><label>Subject</label><select id="tf-s">${SUBJECTS.map(s=>`<option>${s}</option>`).join('')}</select></div>
+        <div class="fg"><label>Duration (minutes)</label><input id="tf-d" type="number" value="30" min="1"></div>
+      </div>
+      <div class="fg"><label>Description</label><textarea id="tf-desc" rows="2" placeholder="Brief instructions…"></textarea></div>
+      <div style="border-top:1px solid var(--b);padding-top:16px;margin-top:4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+          <h3 style="font-size:14px">Questions (<span id="qcount">${qDraft.length}</span>)</h3>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn bs" style="font-size:11px" onclick="addQ('mcq')">+ MCQ</button>
+            <button class="btn bs" style="font-size:11px" onclick="addQ('saq')">+ SAQ</button>
+            <button class="btn bs" style="font-size:11px" onclick="addQ('truefalse')">+ True/False</button>
+            <button class="btn bs" style="font-size:11px" onclick="addQ('fillblank')">+ Fill Blank</button>
+          </div>
+        </div>
+        <div id="qb">${!qDraft.length?'<div class="empty" id="qempty"><div class="ei">➕</div><div class="et">No questions yet</div></div>':qDraft.map((q,i)=>qBuildHTML(q,i)).join('')}</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">
+        <button class="btn bg2b" style="font-size:11px" onclick="editTId=null;qDraft=[];renderACT(document.getElementById('a-content'))">Clear</button>
+        <button class="btn bp" style="font-size:13px" onclick="saveTest()">${editTId?'Update Test ✦':'Publish Test ✦'}</button>
+      </div>
+    </div>`;
+  if(editTId){
+    DB.getTest(editTId).then(t=>{
+      if(!t)return;
+      const fi=document.getElementById('tf-t');if(fi)fi.value=t.title;
+      const fs=document.getElementById('tf-s');if(fs)fs.value=t.subject;
+      const fd=document.getElementById('tf-d');if(fd)fd.value=t.duration;
+      const fde=document.getElementById('tf-desc');if(fde)fde.value=t.desc||'';
+    });
+  }
+}
+function qBuildHTML(q,i){
+  const tl={mcq:'MCQ',saq:'SAQ',truefalse:'T/F',fillblank:'Fill'};
+  const tbc={mcq:'bbl',saq:'bpu',truefalse:'bgd',fillblank:'bor'};
+  const L='ABCDEFGH'; let body='';
+  if(q.type==='mcq'){
+    body=`<label style="margin-bottom:7px">Options — tick the correct one</label>
+    ${(q.options||[]).map((o,j)=>`<div class="opt-row">
+      <span style="width:18px;text-align:center;font-weight:700;font-size:11px;color:var(--ac);font-family:'Syne',sans-serif;flex-shrink:0">${L[j]}</span>
+      <input type="radio" name="cr-${q.id}" ${q.correct===o.id?'checked':''} onchange="setCorrect('${q.id}','${o.id}')">
+      <input value="${escH(o.text)}" style="flex:1" placeholder="Option ${j+1}" oninput="setOptTxt('${q.id}','${o.id}',this.value)">
+      <button onclick="rmOpt('${q.id}','${o.id}')" style="width:24px;height:24px;border-radius:6px;border:1px solid var(--b);background:transparent;color:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">✕</button>
+    </div>`).join('')}
+    <button class="btn bg2b" style="font-size:10px;margin-top:4px" onclick="addOpt('${q.id}')">+ Option</button>`;
+  }else if(q.type==='saq'){
+    body=`<div class="fg"><label>Model Answer</label><textarea rows="2" placeholder="Reference answer…" oninput="setQF('${q.id}','answer',this.value)">${escH(q.answer||'')}</textarea></div>`;
+  }else if(q.type==='truefalse'){
+    body=`<label style="margin-bottom:7px">Correct Answer</label><div style="display:flex;gap:14px;margin-top:5px">
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="tf-${q.id}" value="true" ${q.answer==='true'?'checked':''} onchange="setQF('${q.id}','answer','true')"> True</label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer"><input type="radio" name="tf-${q.id}" value="false" ${q.answer==='false'?'checked':''} onchange="setQF('${q.id}','answer','false')"> False</label>
+    </div>`;
+  }else{
+    body=`<div class="fg"><label>Correct Answer</label><input value="${escH(q.answer||'')}" placeholder="Expected answer…" oninput="setQF('${q.id}','answer',this.value)"></div>`;
+  }
+  return `<div class="qcard" id="qb-${q.id}">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:6px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="badge ${tbc[q.type]||'bbl'}">${tl[q.type]||q.type}</span>
+        <span style="font-size:11px;color:var(--t3);font-family:'Syne',sans-serif;font-weight:700">Q${i+1}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px">
+        <input type="number" value="${q.marks||1}" min="0.5" step="0.5" style="width:62px;padding:5px 8px;font-size:11px" title="Marks" oninput="setQF('${q.id}','marks',+this.value)">
+        <button class="btn bd" style="font-size:10px;padding:5px 9px" onclick="rmQ('${q.id}')">✕ Remove</button>
+      </div>
+    </div>
+    <div class="fg"><label>Question Text</label><textarea rows="2" placeholder="Enter question…" oninput="setQF('${q.id}','text',this.value)">${escH(q.text||'')}</textarea></div>
+    ${body}</div>`;
+}
+function escH(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function addQ(type){
+  const id='q'+Date.now();
+  const q={id,type,text:'',marks:1};
+  if(type==='mcq')q.options=[{id:'oa'+id,text:''},{id:'ob'+id,text:''},{id:'oc'+id,text:''},{id:'od'+id,text:''}],q.correct='oa'+id;
+  else if(type==='saq'||type==='fillblank')q.answer='';
+  else q.answer='true';
+  qDraft.push(q);
+  document.getElementById('qempty')?.remove();
+  const qb=document.getElementById('qb');
+  const d=document.createElement('div');d.innerHTML=qBuildHTML(q,qDraft.length-1);qb.appendChild(d.firstElementChild);
+  document.getElementById('qcount').textContent=qDraft.length;
+}
+function setQF(qid,f,v){const q=qDraft.find(x=>x.id===qid);if(q)q[f]=v;}
+function setCorrect(qid,oid){const q=qDraft.find(x=>x.id===qid);if(q)q.correct=oid;}
+function setOptTxt(qid,oid,v){const q=qDraft.find(x=>x.id===qid);if(q){const o=q.options.find(x=>x.id===oid);if(o)o.text=v;}}
+function addOpt(qid){
+  const q=qDraft.find(x=>x.id===qid);if(!q)return;
+  const oid='o'+Date.now();q.options.push({id:oid,text:''});
+  const el=document.getElementById('qb-'+qid);
+  if(el){const p=el.parentNode,nd=document.createElement('div');nd.innerHTML=qBuildHTML(q,qDraft.indexOf(q));p.replaceChild(nd.firstElementChild,el);}
+}
+function rmOpt(qid,oid){
+  const q=qDraft.find(x=>x.id===qid);if(!q)return;
+  q.options=q.options.filter(o=>o.id!==oid);
+  const el=document.getElementById('qb-'+qid);
+  if(el){const p=el.parentNode,nd=document.createElement('div');nd.innerHTML=qBuildHTML(q,qDraft.indexOf(q));p.replaceChild(nd.firstElementChild,el);}
+}
+function rmQ(qid){
+  qDraft=qDraft.filter(q=>q.id!==qid);
+  document.getElementById('qb-'+qid)?.remove();
+  document.getElementById('qcount').textContent=qDraft.length;
+  if(!qDraft.length){const qb=document.getElementById('qb');if(qb)qb.innerHTML='<div class="empty" id="qempty"><div class="ei">➕</div><div class="et">No questions yet</div></div>';}
+}
+async function saveTest(){
+  const title=(document.getElementById('tf-t')||{}).value?.trim();
+  const subject=(document.getElementById('tf-s')||{}).value;
+  const duration=parseInt((document.getElementById('tf-d')||{}).value)||30;
+  const desc=(document.getElementById('tf-desc')||{}).value?.trim()||'';
+  if(!title)return toast('Enter a test title','er');
+  if(!qDraft.length)return toast('Add at least one question','er');
+  showSaving(true,'Saving to database…');
+  if(editTId){
+    await DB.setTest(editTId,{title,subject,duration,desc,questions:[...qDraft]});
+    toast('Test updated — visible to all students instantly ✓');
+  }else{
+    await DB.addTest({title,subject,duration,desc,questions:[...qDraft]});
+    toast('Test published — visible to all students instantly ✓');
+  }
+  showSaving(false);
+  editTId=null;qDraft=[];
+  aTab('mt',document.getElementById('si-mt'));
+}
+
+async function renderAMT(c){
+  showSaving(true,'Loading…');
+  const tests=await DB.getAllTests();
+  showSaving(false);
+  c.innerHTML=`<h2 style="font-size:20px;margin-bottom:18px">Manage Tests</h2>
+    ${!tests.length?'<div class="empty"><div class="ei">📋</div><div class="et">No tests yet</div></div>':
+    [...tests].reverse().map(t=>`<div class="titem">
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:13px;margin-bottom:5px">${t.title}</div>
+        <div style="display:flex;gap:8px;font-size:11px;color:var(--t2);flex-wrap:wrap;align-items:center">
+          <span class="badge bbl">${t.subject}</span><span>⏱ ${t.duration}m</span><span>❓ ${(t.questions||[]).length} Qs</span>
+          <span style="color:var(--t3)">${fmtDate(t.createdAt)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn bg2b" style="font-size:10px" onclick="editTest('${t.id}')">✏️ Edit</button>
+        <button class="btn bd" style="font-size:10px" onclick="delTest('${t.id}')">🗑</button>
+      </div>
+    </div>`).join('')}`;
+}
+async function editTest(id){
+  showSaving(true,'Loading…');
+  const t=await DB.getTest(id);
+  showSaving(false);
+  if(!t)return;
+  editTId=id;qDraft=JSON.parse(JSON.stringify(t.questions||[]));
+  aTab('ct',document.getElementById('si-ct'));
+  toast('Loaded for editing');
+}
+async function delTest(id){
+  if(!confirm('Delete this test?'))return;
+  showSaving(true,'Deleting…');
+  const subs=await DB.getAllSubs();
+  const toDelete=subs.filter(s=>s.testId===id);
+  await Promise.all(toDelete.map(s=>DB.deleteSub(s.id)));
+  await DB.deleteTest(id);
+  showSaving(false);
+  toast('Test deleted');
+  renderAMT(document.getElementById('a-content'));
+}
+
+// ── NOTES ──
+function renderACN(c){
+  c.innerHTML=`<h2 style="font-size:20px;margin-bottom:18px">Upload Note</h2>
+    <div class="card">
+      <div class="fg"><label>Note Title</label><input id="nf-t" placeholder="e.g. Laws of Thermodynamics"></div>
+      <div class="grid2">
+        <div class="fg"><label>Subject</label><select id="nf-s">${SUBJECTS.map(s=>`<option>${s}</option>`).join('')}</select></div>
+        <div class="fg"><label>Tags (comma separated)</label><input id="nf-tg" placeholder="heat, energy"></div>
+      </div>
+      <div class="fg"><label>Content</label><textarea id="nf-c" rows="12" placeholder="Paste or type note content…"></textarea></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn bg2b" style="font-size:11px" onclick="['nf-t','nf-tg','nf-c'].forEach(x=>{const e=document.getElementById(x);if(e)e.value=''})">Clear</button>
+        <button class="btn bp" style="font-size:13px" onclick="saveNote()">Publish Note ✦</button>
+      </div>
+    </div>`;
+}
+async function saveNote(){
+  const title=(document.getElementById('nf-t')||{}).value?.trim();
+  const subject=(document.getElementById('nf-s')||{}).value;
+  const tags=(document.getElementById('nf-tg')||{}).value?.trim()||'';
+  const content=(document.getElementById('nf-c')||{}).value?.trim();
+  if(!title||!content)return toast('Fill title and content','er');
+  showSaving(true,'Saving to database…');
+  await DB.addNote({title,subject,tags,content});
+  showSaving(false);
+  toast('Note published — visible to all students instantly ✓');
+  aTab('mn',document.getElementById('si-mn'));
+}
+async function renderAMN(c){
+  showSaving(true,'Loading…');
+  const notes=await DB.getAllNotes();
+  showSaving(false);
+  c.innerHTML=`<h2 style="font-size:20px;margin-bottom:18px">Manage Notes</h2>
+    ${!notes.length?'<div class="empty"><div class="ei">📚</div><div class="et">No notes yet</div></div>':
+    `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">${[...notes].reverse().map(n=>`<div class="card">
+      <div style="margin-bottom:6px"><span class="badge bpu">${n.subject}</span></div>
+      <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:12px;margin-bottom:6px">${n.title}</div>
+      <div style="font-size:11px;color:var(--t2);line-height:1.5;margin-bottom:10px;max-height:52px;overflow:hidden">${n.content}</div>
+      <div style="display:flex;gap:6px">
+        <button class="btn bg2b" style="font-size:10px" onclick="openNoteModal('${n.id}')">View</button>
+        <button class="btn bd" style="font-size:10px" onclick="delNote('${n.id}')">🗑 Delete</button>
+      </div>
+    </div>`).join('')}</div>`}`;
+}
+async function delNote(id){
+  if(!confirm('Delete this note?'))return;
+  showSaving(true,'Deleting…');
+  await DB.deleteNote(id);
+  showSaving(false);
+  toast('Note deleted');
+  renderAMN(document.getElementById('a-content'));
+}
+async function renderASTU(c){
+  showSaving(true,'Loading…');
+  const[users,subs]=await Promise.all([DB.getAllUsers(),DB.getAllSubs()]);
+  showSaving(false);
+  const students=users.filter(u=>u.role!=='admin');
+  c.innerHTML=`<h2 style="font-size:20px;margin-bottom:18px">Students (${students.length})</h2>
+    ${!students.length?'<div class="empty"><div class="ei">👥</div><div class="et">No students yet</div></div>':
+    students.map(s=>{
+      const ms=subs.filter(x=>x.userId===s.id);
+      const avg=ms.length?Math.round(ms.reduce((a,b)=>a+Math.round((b.score/b.total)*100),0)/ms.length):null;
+      return `<div class="titem">
+        <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--ac2),var(--ac));display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;font-family:'Syne',sans-serif;font-size:12px;flex-shrink:0">${s.name[0].toUpperCase()}</div>
+        <div style="flex:1"><div style="font-weight:500;font-size:13px">${s.name}</div><div style="font-size:11px;color:var(--t2)">@${s.username} · ${ms.length} test${ms.length!==1?'s':''}</div></div>
+        ${avg!==null?`<span class="badge bbl">Avg: ${avg}%</span>`:`<span class="badge bor">No tests</span>`}
+      </div>`;
+    }).join('')}`;
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeModal('auth-modal');closeModal('note-modal');}});
+</script>
+</body>
+</html>
